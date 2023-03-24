@@ -1,0 +1,129 @@
+<div id="carousell"></div>
+<div id="action-buttons">
+    <button onclick="moveCarousell(.1)">></button>
+    <button onclick="moveCarousell(-.1)"><</button>
+</div>
+
+<script>
+    let images = [];
+    const imagesContainer = document.getElementById("carousell");
+
+    // Intial render
+    async function loadImages() {
+        let response = await fetch("/api/images");
+
+        images = await response.json(); // Only contains the file name, not the image name
+
+    }
+
+    async function renderImages() {
+        images.forEach((imageFileName) => {
+            let imageElement = document.createElement("img");
+            imageElement.src = `/images/${imageFileName}`;
+
+            imagesContainer.appendChild(imageElement);
+        });
+    }
+
+    async function onMouseDown(event) {
+        imagesContainer.dataset.isMoving = true;
+        imagesContainer.dataset.startX = event.x;
+    }
+    async function onMouseUp(event) {
+        imagesContainer.dataset.isMoving = false;
+        let oldPercentage = parseFloat(imagesContainer.dataset.percentage || "0");
+        let percentage = oldPercentage - getPercentageDiff(event.x);
+        imagesContainer.dataset.percentage = percentage;
+    }
+
+    function getPercentageDiff(currentX) {
+        let startX = parseInt(imagesContainer.dataset.startX);
+
+        let percentage = (currentX - startX) / screen.width;
+        return percentage;
+    }
+
+    async function onMouseMove(event) {
+        if (imagesContainer.dataset.isMoving !== "true") { // Dataset is just strings
+            return;
+        }
+        if (imagesContainer.dataset.prevX === undefined) {
+            imagesContainer.dataset.prevX = event.clientX;
+        }
+
+        let diff = getPercentageDiff(event.clientX);
+        renderMove(diff);
+    }
+
+    async function renderMove(moveDiff) {
+        let oldPercentage = parseFloat(imagesContainer.dataset.percentage || "0");
+
+        let diff = moveDiff - oldPercentage;
+        let css = `translate(${diff * 100}%, 0%)`;
+        imagesContainer.animate({transform: css}, {fill: "forwards", duration: 1200});
+
+        let children = Array.from(imagesContainer.children);
+        children.forEach(image => {
+            image.animate({objectPosition: `${(diff * 50) + 50}% center`}, {fill: "forwards", duration: 500});
+        });
+    }
+
+    function moveCarousell(diff) {
+        let oldPercentage = parseFloat(imagesContainer.dataset.percentage || "0");
+        let percentage = oldPercentage + diff;
+        imagesContainer.dataset.percentage = percentage;
+        renderMove(0);
+    }
+
+    // Register events
+    document.body.onmousedown = onMouseDown;
+    document.body.onmouseup = onMouseUp;
+    document.body.onmousemove = onMouseMove;
+
+    async function load() {
+        await loadImages();
+        await renderImages();
+    }
+    load();
+</script>
+
+<style>
+    body {
+        background: hsl(0, 0%, 0%);
+        overflow: hidden;
+    }
+    /* Carousell effects */
+    #carousell {
+        position: relative;
+        height: 100%;
+
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    #carousell > img {
+        width: 20vw;
+        height: 50%;
+        object-fit: cover;
+        object-position: 50% center;
+        user-drag: none;
+        user-select: none;
+    }
+    /* Action buttons */
+    #action-buttons > button {
+        border: transparent;
+        background: transparent;
+        color: #ccc;
+        padding: 1rem;
+        position: absolute;
+        top: 50vh;
+        z-index: 1000;
+    }
+    #action-buttons > button:nth-child(0) {
+        left: 1rem;
+    }
+    #action-buttons > button:nth-child(1) {
+        right: 1rem;
+    }
+
+</style>
